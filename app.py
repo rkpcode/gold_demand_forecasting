@@ -76,9 +76,9 @@ else:
 # If df is None or empty, use dummy with seasonal pattern
 if df is None or df.empty:
     dates = pd.date_range(start="2023-01-01", periods=24, freq='M')
-    base_sales = np.array([100, 120, 150, 130, 140, 160, 180, 170, 190, 200, 220, 250] * 2)
-    seasonal_factor = np.sin(np.linspace(0, 2 * np.pi, 12)) * 50 + 150
-    sales_qty = base_sales[:24] + seasonal_factor[:24].astype(int)
+    base_sales = np.array([100, 120, 150, 130, 140, 160, 180, 170, 190, 200, 220, 250] * 2)  # 24 elements
+    seasonal_factor = np.tile(np.sin(np.linspace(0, 2 * np.pi, 12)) * 50 + 150, 2)  # Repeat 12-month pattern twice
+    sales_qty = base_sales + seasonal_factor.astype(int)  # Ensure integer conversion after addition
     df = pd.DataFrame({
         "Date": dates,
         "SalesQty": sales_qty,
