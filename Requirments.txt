@@ -5,3 +5,9 @@ scikit-learn
 pandas
 numpy
 matplotlib
+streamlit
+pandas
+matplotlib
+requests
+statsmodels
+numpy
