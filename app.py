@@ -31,6 +31,27 @@ plt.plot(df["Date"][-len(best_pred):], best_pred, label="Forecast", color="red")
 plt.legend()
 st.pyplot(plt)
 
+# Sales Forecast vs Actual
+if "Date" in df.columns and "SalesQty" in df.columns:
+    plt.figure(figsize=(10, 5))
+    plt.plot(df["Date"], df["SalesQty"], label="Actual Sales")
+    if 'best_pred' in locals() and len(best_pred) > 0:
+        plt.plot(df["Date"][-len(best_pred):], best_pred, label="Forecast", color="red")
+    plt.legend()
+    st.pyplot(plt)
+else:
+    st.write("Missing 'Date' or 'SalesQty' columns.")
+
+# Gold Price Trend
+if "Date" in df.columns and "GoldPrice" in df.columns:
+    plt.figure(figsize=(10, 5))
+    plt.plot(df["Date"], df["GoldPrice"], label="Gold Price")
+    plt.plot(df["Date"], df["GoldPrice"].rolling(7).mean(), label="7-day Avg", linestyle="dashed")
+    plt.legend()
+    st.pyplot(plt)
+else:
+    st.write("Missing 'Date' or 'GoldPrice' columns.")
+
 # Gold Price Trend
 st.subheader("💰 Gold Price Trend")
 plt.figure(figsize=(10,5))
