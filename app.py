@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
-from statsmodels.tsa.arima.model import ARIMA
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import numpy as np
 from datetime import datetime
@@ -16,7 +15,7 @@ current_stock = st.sidebar.number_input("Current Stock (grams)", min_value=0, va
 manual_gold_price = st.sidebar.number_input("Manual Gold Price (₹/g) - Use if API fails", min_value=4000, value=11488)
 api_key = st.sidebar.text_input("API Key for GoldPriceZ (optional for custom API)")
 
-# Function to fetch live gold price - Robust with try-except, fallback, and checks
+# Function to fetch live gold price
 @st.cache_data(ttl=3600)  # Cache for 1 hour
 def fetch_gold_price():
     try:
@@ -48,16 +47,30 @@ def fetch_gold_price():
 latest_gold_price = fetch_gold_price()
 st.sidebar.metric("Live Gold Price (₹/g)", latest_gold_price)
 
-# Upload option for real sales data - Handle no file gracefully
-uploaded_file = st.sidebar.file_uploader("Upload Sales Data CSV", type="csv")
+# Upload option for real sales data - Enhanced robustness
+uploaded_file = st.sidebar.file_uploader("Upload Sales Data CSV", type="csv", key="sales_data_uploader")
 if uploaded_file is not None:
     try:
-        df = pd.read_csv(uploaded_file, parse_dates=["Date"])
-        if df.empty:
-            st.warning("Uploaded CSV is empty. Using dummy data.")
-            raise ValueError("Empty DataFrame")
+        st.write("Processing uploaded file...")
+        # Check file content
+        file_content = uploaded_file.read()
+        if not file_content:
+            st.error("Uploaded file is empty.")
+            df = None
+        else:
+            # Reset file pointer and read CSV
+            uploaded_file.seek(0)
+            df = pd.read_csv(uploaded_file, parse_dates=["Date"], dayfirst=True)  # Try dayfirst for DD/MM/YYYY
+            if df.empty:
+                st.warning("Uploaded CSV is empty after reading.")
+                df = None
+            else:
+                st.success("File uploaded successfully!")
+    except ValueError as ve:
+        st.error(f"Date parsing error: {ve}. Please ensure 'Date' column is in a valid format (e.g., DD/MM/YYYY or YYYY-MM-DD). Using dummy data.")
+        df = None
     except Exception as e:
-        st.error(f"Error loading CSV: {e}. Using dummy dataset.")
+        st.error(f"Error loading CSV: {e}. Using dummy dataset. Check file format or permissions.")
         df = None
 else:
     st.warning("⚠️ No file uploaded. Using dummy dataset.")
@@ -65,9 +78,9 @@ else:
 
 # If df is None or empty, use dummy with seasonal pattern
 if df is None or df.empty:
-    dates = pd.date_range(start="2023-01-01", periods=24, freq='M')  # 2 years monthly data
+    dates = pd.date_range(start="2023-01-01", periods=24, freq='M')
     base_sales = np.array([100, 120, 150, 130, 140, 160, 180, 170, 190, 200, 220, 250] * 2)
-    seasonal_factor = np.sin(np.linspace(0, 2 * np.pi, 12)) * 50 + 150  # Seasonal oscillation
+    seasonal_factor = np.sin(np.linspace(0, 2 * np.pi, 12)) * 50 + 150
     sales_qty = base_sales[:24] + seasonal_factor[:24].astype(int)
     df = pd.DataFrame({
         "Date": dates,
@@ -77,7 +90,7 @@ if df is None or df.empty:
 
 # Ensure Date is datetime and sort, set index
 if "Date" in df.columns:
-    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+    df["Date"] = pd.to_datetime(df["Date"], errors='coerce', dayfirst=True)
     df = df.sort_values("Date").dropna(subset=["Date"])
     df.set_index("Date", inplace=True)
 
@@ -93,12 +106,11 @@ st.dataframe(df.tail(10))
 
 # ML Forecasting with SARIMA - Integrated real model with seasonality
 st.subheader("🧠 ML Forecasting Model")
-if "SalesQty" in df.columns and len(df) >= 12:  # Need at least 1 year for seasonality
+if "SalesQty" in df.columns and len(df) >= 12:
     try:
-        # SARIMA model (p,d,q,P,D,Q,s) - Seasonal order (1,1,1,12) for yearly seasonality
         model = SARIMAX(df["SalesQty"], order=(5,1,0), seasonal_order=(1,1,1,12), enforce_stationarity=False, enforce_invertibility=False)
         fit = model.fit(disp=False)
-        forecast_steps = 6  # Forecast next 6 months
+        forecast_steps = 6
         best_pred = fit.forecast(steps=forecast_steps)
         forecast_index = pd.date_range(start=df.index[-1] + pd.offsets.MonthEnd(), periods=forecast_steps, freq='M')
         st.success("SARIMA model fitted successfully with seasonal factors.")
@@ -111,7 +123,7 @@ else:
     best_pred = np.array([150] * 5)
     forecast_index = pd.date_range(start=df.index[-1] + pd.Timedelta(days=1), periods=5, freq='D')
 
-# Forecast plot - With length checks
+# Forecast plot
 st.subheader("📈 Sales Forecast vs Actual")
 if "SalesQty" in df.columns:
     try:
@@ -125,7 +137,7 @@ if "SalesQty" in df.columns:
 else:
     st.write("Missing 'SalesQty' column.")
 
-# Gold Price Trend - Handle short data for rolling
+# Gold Price Trend
 st.subheader("💰 Gold Price Trend")
 if "GoldPrice" in df.columns:
     try:
@@ -143,38 +155,24 @@ if "GoldPrice" in df.columns:
 else:
     st.write("Missing 'GoldPrice' column.")
 
-# Updated decision_engine - Using ML forecast, gold price, and seasonal insight
+# Decision Engine with seasonal insight
 def decision_engine(df, best_pred, today_date, current_stock, latest_gold_price):
     try:
-        # Estimated future demand (sum of forecast)
         future_demand = sum(best_pred)
-        
-        # Seasonal adjustment: Higher demand in festive months (e.g., Oct-Dec)
         today_month = today_date.month
         seasonal_boost = 1.0
         festive_months = [10, 11, 12]  # Oct, Nov, Dec (Diwali, wedding season)
         if today_month in festive_months:
-            seasonal_boost = 1.3  # 30% boost in festive season
+            seasonal_boost = 1.3
         
         adjusted_demand = future_demand * seasonal_boost
-        
-        # Check if gold price is low (below historical mean)
         is_price_low = latest_gold_price < df["GoldPrice"].mean()
-        
-        # Base buy qty: Cover shortfall in stock for adjusted demand
         buy_qty = max(0, adjusted_demand - current_stock)
-        
-        # If price low, buy 20% extra
         if is_price_low:
             buy_qty *= 1.2
         
         buy_qty = round(buy_qty)
-        
-        if buy_qty > 0:
-            recommendation = f"Buy Gold (Price is {'low' if is_price_low else 'normal'}, Seasonal Boost: {'Yes' if today_month in festive_months else 'No'})"
-        else:
-            recommendation = "Hold Stock (Sufficient inventory)"
-        
+        recommendation = f"Buy Gold (Price is {'low' if is_price_low else 'normal'}, Seasonal Boost: {'Yes' if today_month in festive_months else 'No'})" if buy_qty > 0 else "Hold Stock (Sufficient inventory)"
         return {"Recommendation": recommendation, "BuyQty": buy_qty}
     except Exception as e:
         st.error(f"Error in decision engine: {e}")
