@@ -2,9 +2,20 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-import numpy as np
-from datetime import datetime
+import sys
+
+# Attempt to import SARIMAX with fallback
+try:
+    from statsmodels.tsa.statespace.sarimax import SARIMAX
+    import numpy as np
+    from datetime import datetime
+except ImportError as e:
+    st.error(
+        f"Missing required library: {e}. "
+        "Please install 'statsmodels' by running 'pip install statsmodels' locally, "
+        "or add 'statsmodels==0.14.0' to your requirements.txt and redeploy on Streamlit Cloud."
+    )
+    st.stop()
 
 # Title
 st.title("💎 Jewellery Shop Demand & Purchase Recommendation")
@@ -47,20 +58,18 @@ def fetch_gold_price():
 latest_gold_price = fetch_gold_price()
 st.sidebar.metric("Live Gold Price (₹/g)", latest_gold_price)
 
-# Upload option for real sales data - Enhanced robustness
+# Upload option for real sales data
 uploaded_file = st.sidebar.file_uploader("Upload Sales Data CSV", type="csv", key="sales_data_uploader")
 if uploaded_file is not None:
     try:
         st.write("Processing uploaded file...")
-        # Check file content
         file_content = uploaded_file.read()
         if not file_content:
             st.error("Uploaded file is empty.")
             df = None
         else:
-            # Reset file pointer and read CSV
             uploaded_file.seek(0)
-            df = pd.read_csv(uploaded_file, parse_dates=["Date"], dayfirst=True)  # Try dayfirst for DD/MM/YYYY
+            df = pd.read_csv(uploaded_file, parse_dates=["Date"], dayfirst=True)
             if df.empty:
                 st.warning("Uploaded CSV is empty after reading.")
                 df = None
@@ -104,7 +113,7 @@ else:
 st.subheader("📊 Data Preview")
 st.dataframe(df.tail(10))
 
-# ML Forecasting with SARIMA - Integrated real model with seasonality
+# ML Forecasting with SARIMA
 st.subheader("🧠 ML Forecasting Model")
 if "SalesQty" in df.columns and len(df) >= 12:
     try:
