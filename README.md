@@ -1,4 +1,4 @@
-# 💎 Jewellery Shop Demand Forecasting System
+# 💎 Jewellery Shop Demand Forecasting & Purchase Recommendation System
 
 **Predict daily buying quantity for a jewellery shop using past sales, inventory, and gold price data.**
 
