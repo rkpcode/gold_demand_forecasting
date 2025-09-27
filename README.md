@@ -51,4 +51,4 @@ git clone https://github.com/rkpcode/jewellery_demand_forecasting.git
 cd jewellery_demand_forecasting
 
 ## 🌐 Live Demo
-[![Streamlit App](https://img.shields.io/badge/Streamlit-Live%20App-brightgreen?logo=streamlit)](https://lalchandgbrt.streamlit.app)
+https://lalchandgbrt.streamlit.app/
