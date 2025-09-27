@@ -47,5 +47,5 @@ jewellery_demand_forecasting/ │── data/ │   ├── raw/              
 
 ### 1. Clone Repository
 ```bash
-git clone https://github.com/yourusername/jewellery_demand_forecasting.git
+git clone https://github.com/rkpcode/jewellery_demand_forecasting.git
 cd jewellery_demand_forecasting
