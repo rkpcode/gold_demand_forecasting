@@ -1,4 +1,10 @@
-import pandas as pd
+import pandas as pdfastapi
+uvicorn
+streamlit
+scikit-learn
+pandas
+numpy
+matplotlib
 import numpy as np
 
 # Step 1: Generate date range (1 year dummy data)
