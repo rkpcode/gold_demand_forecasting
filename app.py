@@ -2,20 +2,8 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
-import sys
-
-# Attempt to import SARIMAX with fallback
-try:
-    from statsmodels.tsa.statespace.sarimax import SARIMAX
-    import numpy as np
-    from datetime import datetime
-except ImportError as e:
-    st.error(
-        f"Missing required library: {e}. "
-        "Please install 'statsmodels' by running 'pip install statsmodels' locally, "
-        "or add 'statsmodels==0.14.0' to your requirements.txt and redeploy on Streamlit Cloud."
-    )
-    st.stop()
+import numpy as np
+from datetime import datetime
 
 # Title
 st.title("💎 Jewellery Shop Demand & Purchase Recommendation")
@@ -113,22 +101,23 @@ else:
 st.subheader("📊 Data Preview")
 st.dataframe(df.tail(10))
 
-# ML Forecasting with SARIMA
-st.subheader("🧠 ML Forecasting Model")
-if "SalesQty" in df.columns and len(df) >= 12:
+# Simple Moving Average Forecast
+st.subheader("🧠 Forecasting Model")
+if "SalesQty" in df.columns and len(df) >= 3:  # Need at least 3 points for moving average
     try:
-        model = SARIMAX(df["SalesQty"], order=(5,1,0), seasonal_order=(1,1,1,12), enforce_stationarity=False, enforce_invertibility=False)
-        fit = model.fit(disp=False)
-        forecast_steps = 6
-        best_pred = fit.forecast(steps=forecast_steps)
-        forecast_index = pd.date_range(start=df.index[-1] + pd.offsets.MonthEnd(), periods=forecast_steps, freq='M')
-        st.success("SARIMA model fitted successfully with seasonal factors.")
+        window = min(3, len(df))  # Use 3-period or all available data
+        moving_avg = df["SalesQty"].rolling(window=window, min_periods=1).mean()
+        forecast_steps = 5
+        last_avg = moving_avg.iloc[-1]
+        best_pred = np.full(forecast_steps, last_avg)
+        forecast_index = pd.date_range(start=df.index[-1] + pd.Timedelta(days=1), periods=forecast_steps, freq='D')
+        st.success("Simple moving average forecast generated.")
     except Exception as e:
-        st.error(f"Error fitting SARIMA model: {e}. Using dummy forecast.")
+        st.error(f"Error in calculating moving average: {e}. Using dummy forecast.")
         best_pred = np.array([df["SalesQty"].mean()] * 5)
         forecast_index = pd.date_range(start=df.index[-1] + pd.Timedelta(days=1), periods=5, freq='D')
 else:
-    st.warning("Not enough data for SARIMA forecasting. Using dummy.")
+    st.warning("Not enough data for forecasting. Using dummy.")
     best_pred = np.array([150] * 5)
     forecast_index = pd.date_range(start=df.index[-1] + pd.Timedelta(days=1), periods=5, freq='D')
 
