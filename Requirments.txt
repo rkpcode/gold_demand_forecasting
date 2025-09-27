@@ -6,5 +6,5 @@ pandas
 numpy
 matplotlib
 requests
-statsmodels
+statsmodels==0.14.0
 
