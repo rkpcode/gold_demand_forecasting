@@ -12,26 +12,22 @@ st.sidebar.header("Today's Inputs")
 current_stock = st.sidebar.number_input("Current Stock (grams)", min_value=0, value=2000)
 today_price = st.sidebar.number_input("Today's Gold Price (₹/g)", min_value=4000, value=5800)
 
-# Function to fetch live gold price from free API
-@st.cache_data(ttl=3600)  # Cache for 1 hour to avoid too many calls
+# Function to fetch live gold price from API Ninjas (Indian market)
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def fetch_gold_price():
     try:
-        # GoldAPI.io free endpoint (USD per ounce)
-        url = "https://www.goldapi.io/api/XAU/USD"
+        url = "https://api.api-ninjas.com/v1/goldprice?country=india"
         response = requests.get(url)
         if response.status_code == 200:
             data = response.json()
-            price_usd_per_oz = data['price']  # USD per ounce
-            # Convert to INR per gram (approx: 1 oz = 31.1035g, USD-INR rate ~83.5, adjust as needed)
-            usd_inr_rate = 83.5  # You can fetch this from another free API like exchangerate-api.com
-            price_inr_per_gram = (price_usd_per_oz * usd_inr_rate) / 31.1035
+            price_inr_per_gram = data[0]['price_per_gram']  # Direct INR per gram for India
             return round(price_inr_per_gram, 2)
         else:
             st.warning("API call failed, using fallback price.")
-            return 5800  # Fallback
+            return 11488  # Current market fallback
     except Exception as e:
         st.warning(f"Error fetching price: {e}. Using fallback.")
-        return 5800
+        return 11488
 
 # Fetch latest gold price
 latest_gold_price = fetch_gold_price()
